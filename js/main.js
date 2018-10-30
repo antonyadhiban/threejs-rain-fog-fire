@@ -1,12 +1,24 @@
 // stats code
 (function(){var script=document.createElement('script');script.onload=function(){var stats=new Stats();document.body.appendChild(stats.dom);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='//rawgit.com/mrdoob/stats.js/master/build/stats.min.js';document.head.appendChild(script);})()
 
+//WebGL Stuff
+if ( WEBGL.isWebGLAvailable() === false ) {
+    document.body.appendChild( WEBGL.getWebGLErrorMessage() );
+}
+
+// require statements
+VolumetricFire.texturePath = 'textures/';
+
 var scene = new THREE.Scene();
+scene.background = new THREE.Color( 0xA9A9A9 );
+scene.fog = new THREE.FogExp2( 0xA9A9A9, 0.04 );
 var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+var clock = new THREE.Clock();
 
 var renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+
 
 window.addEventListener('resize', function () {
     var width = window.innerWidth;
@@ -16,16 +28,44 @@ window.addEventListener('resize', function () {
     camera.updateProjectionMatrix();
 })
 
+
+// SET CONTROLS
 controls = new THREE.OrbitControls( camera, renderer.domElement );
 
-// create the shape
-var geometry = new THREE.BufferGeometry(1, 1, 1);
+// ADD LOD SPHERE
+var lod = new THREE.LOD();
 
-// create a material, color, image texture
-var material = new THREE.MeshBasicMaterial({ color: 0xFF0000, wireframe: false });
-var cube = new THREE.Mesh(geometry, material);
-scene.add(cube);
+for( var i = 0; i < 3; i++ ) {
+var geometry = new THREE.IcosahedronBufferGeometry( 1, 3 - i );
+var material = new THREE.MeshBasicMaterial( {color: 0xffffff, wireframe: true} );
+var mesh = new THREE.Mesh( geometry, material );
+// var sphere = new THREE.Mesh( geometry, material );
+lod.addLevel( mesh, i * 75 );
+}
+scene.add( lod );
 
+// HELPER AXES FOR REFERENCE
+var axesHelper = new THREE.AxesHelper( 5 );
+scene.add( axesHelper );
+
+
+
+
+// FIRE 
+// var scene = new THREE.Scene();
+
+var tex = THREE.ImageUtils.loadTexture("Fire.png");
+var fire = new THREE.Fire( tex );
+fire.position.y += 1;
+
+scene.add( fire );
+// ********************************
+
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// create the rain particles
 var material = new THREE.PointsMaterial({
     color: 0xfffcc
 });
@@ -40,23 +80,19 @@ function create_random_points(){
     geometry.vertices.push(new THREE.Vector3(x, y, z));
 }
 
-for(var i = 0; i < 1000; i+=1){
+for(var i = 0; i < 10000; i+=1){
     create_random_points();
 }
 
-// _.times(1000, function(n){
-//     x = (Math.random() * 800) - 400;
-//   y = (Math.random() * 800) - 400;
-//   z = (Math.random() * 800) - 400;
-//   geometry.vertices.push(new THREE.Vector3(x, y, z));
-// })
-
 var pointCloud = new THREE.Points(geometry, material);
+
 scene.add(pointCloud);
 
+// ********************************
 
-camera.position.z = 10;
 
+// SET CAMERA OFFSET
+camera.position.z = 20;
 
 var update = function () {
 
@@ -65,23 +101,26 @@ var update = function () {
 
 
 function render(){  
-    window.requestAnimationFrame(render);  
-        // requestAnimationFrame(render);
+    // requestAnimationFrame(render);  
+    var elapsed = clock.getElapsedTime();
     geometry.vertices.forEach(function(particle){
         var dX, dY, dZ;    
         // dX = Math.random() * 2 - 1;    
         // dY = Math.random() * 2 - 1;    
         // dZ = Math.random() * 2 - 1;   
         dX = 0;    
-        dY = -0.01;    
+        dY = -7;    
         dZ = 0;  
         particle.add(new THREE.Vector3(dX, dY, dZ));  
-        // particle.parent.add(new THREE.rotation(dY));  
-        // particle.rotation.y += 0.05;
+        // Reset position of particles after it hits a point
+        if(particle.y < -200) particle.y += 400;
         
     }) 
-    geometry.verticesNeedUpdate = true;  
 
+
+    geometry.verticesNeedUpdate = true;  
+    update(camera);
+    fire.update( elapsed );
     renderer.render(scene, camera);
 }
 
